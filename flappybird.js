@@ -1,15 +1,15 @@
 // Variáveis do tabuleiro
 let board;
-let boardWidth = 360; // Largura do tabuleiro
-let boardHeight = 640; // Altura do tabuleiro
-let context; // Contexto do canvas para desenhar
+let boardWidth = 360;
+let boardHeight = 640;
+let context;
 
 // Variáveis do pássaro
-let birdWidth = 34; // Largura do pássaro (proporção width/height = 17/12)
-let birdHeight = 24; // Altura do pássaro
-let birdX = boardWidth / 8; // Posição inicial X do pássaro
-let birdY = boardHeight / 2; // Posição inicial Y do pássaro
-let birdImg; // Imagem do pássaro
+let birdWidth = 34;
+let birdHeight = 24;
+let birdX = boardWidth / 8;
+let birdY = boardHeight / 2;
+let birdImg;
 
 let bird = {
     x: birdX,
@@ -19,29 +19,34 @@ let bird = {
 };
 
 // Variáveis dos canos
-let pipeArray = []; // Array para armazenar os canos
-let pipeWidth = 64; // Largura do cano (proporção width/height = 1/8)
-let pipeHeight = 512; // Altura do cano
-let pipeX = boardWidth; // Posição inicial X dos canos
-let pipeY = 0; // Posição inicial Y dos canos
+let pipeArray = [];
+let pipeWidth = 64;
+let pipeHeight = 512;
+let pipeX = boardWidth;
+let pipeY = 0;
 
-let topPipeImg; // Imagem do cano de cima
-let bottomPipeImg; // Imagem do cano de baixo
+let topPipeImg;
+let bottomPipeImg;
 
 // Física do jogo
-let velocityX = -2; // Velocidade horizontal dos canos (movendo para a esquerda)
-let velocityY = 0; // Velocidade vertical do pássaro (para o pulo)
-let gravity = 0.4; // Gravidade aplicada ao pássaro
+let velocityX = -2; // Velocidade inicial dos canos
+let velocityY = 0; // Velocidade do pássaro
+let gravity = 0.4;
 
-let gameOver = false; // Estado do jogo
-let score = 0; // Pontuação do jogador
+let gameOver = false;
+let score = 0;
+let level = 1; // Nível inicial
+let pipesPassed = 0; // Contador de canos passados
 
-// Quando a janela carregar, configura o jogo
+// Timer
+let timeElapsed = 0; // Tempo decorrido em segundos
+let timerInterval;
+
 window.onload = function () {
     board = document.getElementById("board");
     board.height = boardHeight;
     board.width = boardWidth;
-    context = board.getContext("2d"); // Contexto para desenhar no canvas
+    context = board.getContext("2d");
 
     // Carrega a imagem do pássaro
     birdImg = new Image();
@@ -59,24 +64,27 @@ window.onload = function () {
 
     // Inicia o loop de atualização do jogo
     requestAnimationFrame(update);
-    // Coloca novos canos a cada 1.5 segundos
-    setInterval(placePipes, 1500);
+    // Coloca novos canos a cada 2 segundos (aumentamos o intervalo)
+    setInterval(placePipes, 2000);
     // Adiciona o evento de tecla para mover o pássaro
     document.addEventListener("keydown", moveBird);
+
+    // Inicia o timer
+    timerInterval = setInterval(updateTimer, 1000); // Atualiza o timer a cada segundo
 };
 
 // Função para atualizar o jogo
 function update() {
     requestAnimationFrame(update);
     if (gameOver) {
-        return; // Se o jogo acabou, não atualiza mais
+        return;
     }
-    context.clearRect(0, 0, board.width, board.height); // Limpa o canvas
+    context.clearRect(0, 0, board.width, board.height);
 
     // Atualiza a posição do pássaro
-    velocityY += gravity; // Aplica a gravidade
-    bird.y = Math.max(bird.y + velocityY, 0); // Limita o pássaro ao topo do canvas
-    context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height); // Desenha o pássaro
+    velocityY += gravity;
+    bird.y = Math.max(bird.y + velocityY, 0);
+    context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
 
     // Verifica se o pássaro caiu no chão
     if (bird.y > board.height) {
@@ -86,13 +94,20 @@ function update() {
     // Atualiza os canos
     for (let i = 0; i < pipeArray.length; i++) {
         let pipe = pipeArray[i];
-        pipe.x += velocityX; // Move o cano para a esquerda
-        context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height); // Desenha o cano
+        pipe.x += velocityX; // Move os canos com a velocidade atual
+        context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height);
 
         // Verifica se o pássaro passou pelo cano
         if (!pipe.passed && bird.x > pipe.x + pipe.width) {
-            score += 0.5; // Aumenta a pontuação (0.5 para cada cano, total 1 por par)
+            score += 10; // Aumenta a pontuação em 10 pontos por cano
+            pipesPassed++; // Incrementa o contador de canos passados
             pipe.passed = true;
+
+            // Verifica se o jogador subiu de nível
+            if (pipesPassed % 10 === 0) {
+                level++; // Aumenta o nível
+                velocityX -= 0.5; // Aumenta a velocidade dos canos
+            }
         }
 
         // Verifica colisão entre o pássaro e o cano
@@ -103,29 +118,32 @@ function update() {
 
     // Remove canos que saíram da tela
     while (pipeArray.length > 0 && pipeArray[0].x < -pipeWidth) {
-        pipeArray.shift(); // Remove o primeiro cano do array
+        pipeArray.shift();
     }
 
-    // Desenha a pontuação
+    // Desenha a pontuação, o nível e o tempo decorrido
     context.fillStyle = "white";
-    context.font = "45px sans-serif";
-    context.fillText(score, 5, 45);
+    context.font = "30px sans-serif";
+    context.fillText(`Pontos: ${score}`, 5, 30); // Exibe a pontuação
+    context.fillText(`Nível: ${level}`, 5, 60); // Exibe o nível
+    context.fillText(`Tempo: ${timeElapsed}s`, 5, 90); // Exibe o tempo decorrido
 
-    // Desenha "GAME OVER" se o jogo acabou
+    // Verifica se o jogo acabou
     if (gameOver) {
-        context.fillText("GAME OVER", 5, 90);
+        clearInterval(timerInterval); // Para o timer
+        context.fillText("GAME OVER", 5, 120);
     }
 }
 
 // Função para adicionar novos canos
 function placePipes() {
     if (gameOver) {
-        return; // Se o jogo acabou, não adiciona novos canos
+        return;
     }
 
     // Gera uma posição Y aleatória para os canos
     let randomPipeY = pipeY - pipeHeight / 4 - Math.random() * (pipeHeight / 2);
-    let openingSpace = board.height / 4; // Espaço entre os canos
+    let openingSpace = board.height / 3; // Aumentamos o espaço entre os canos
 
     // Cria o cano de cima
     let topPipe = {
@@ -161,7 +179,12 @@ function moveBird(e) {
             bird.y = birdY;
             pipeArray = [];
             score = 0;
+            level = 1; // Reseta o nível
+            pipesPassed = 0; // Reseta o contador de canos passados
+            velocityX = -2; // Reseta a velocidade dos canos
+            timeElapsed = 0; // Reseta o tempo
             gameOver = false;
+            timerInterval = setInterval(updateTimer, 1000); // Reinicia o timer
         }
     }
 }
@@ -169,9 +192,16 @@ function moveBird(e) {
 // Função para detectar colisões
 function detectCollision(a, b) {
     return (
-        a.x < b.x + b.width && // Verifica se o lado esquerdo de 'a' colide com o lado direito de 'b'
-        a.x + a.width > b.x && // Verifica se o lado direito de 'a' colide com o lado esquerdo de 'b'
-        a.y < b.y + b.height && // Verifica se o topo de 'a' colide com a base de 'b'
-        a.y + a.height > b.y // Verifica se a base de 'a' colide com o topo de 'b'
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y
     );
+}
+
+// Função para atualizar o timer
+function updateTimer() {
+    if (!gameOver) {
+        timeElapsed++; // Incrementa o tempo decorrido
+    }
 }
